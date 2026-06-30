@@ -1,48 +1,41 @@
-const shortID = require("shortid");
-const Url = require("../models/url");
+const shortid = require("shortid");
+const URL = require("../models/url");
 
-async function handleGenerateShortUrl(req, res) {
-    const body = req.body;
+async function handleGenerateNewShortURL(req, res) {
+  const { url } = req.body;
 
-    if (!body.url) {
-        return res.status(400).send("URL is required");
-    }
+  if (!url) {
+    return res.status(400).json({ error: "URL is required" });
+  }
 
-    const shortid = shortID.generate();
+  const shortId = shortid.generate();
 
-    await Url.create({
-        shortId: shortid,
-        redirectUrl: body.url,
-        visitHistory: [],
-    });
+  await URL.create({
+    shortId,
+    redirectURL: url,
+    visitHistory: [],
+    createdBy: req.user._id,
+  });
 
-const allUrls = await Url.find({});
+  return res.render("home", { id: shortId });
+}
 
-return res.render("script", {
-    urls: allUrls,
-    id: shortid,
-});}
+async function handleGetAnalytics(req, res) {
+  const { shortId } = req.params;
 
-async function handleAnalytics(req, res) {
-    const shortId = req.params.shortId;
+  const result = await URL.findOne({ shortId, createdBy: req.user._id });
 
-    const result = await Url.findOne({
-        shortId,
-    });
+  if (!result) {
+    return res.status(404).json({ error: "Short URL not found" });
+  }
 
-    if (!result) {
-        return res.status(404).json({
-            error: "URL not found",
-        });
-    }
-
-    return res.json({
-        totalClicks: result.visitHistory.length,
-        analytics: result.visitHistory,
-    });
+  return res.json({
+    totalClicks: result.visitHistory.length,
+    analytics: result.visitHistory,
+  });
 }
 
 module.exports = {
-    handleGenerateShortUrl,
-    handleAnalytics,
+  handleGenerateNewShortURL,
+  handleGetAnalytics,
 };
